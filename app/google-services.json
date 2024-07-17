@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "480661534990",
+    "firebase_url": "https://ph3042-35eb5-default-rtdb.firebaseio.com",
+    "project_id": "ph3042-35eb5",
+    "storage_bucket": "ph3042-35eb5.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:480661534990:android:949499c3dc9d78f075bf5f",
+        "android_client_info": {
+          "package_name": "com.example.cargo_mangement"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlj7Atlx4tZ_1XVPl6QQLpIRQoluonTVw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:480661534990:android:5c3018ea2ead316675bf5f",
+        "android_client_info": {
+          "package_name": "com.example.ph3042"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlj7Atlx4tZ_1XVPl6QQLpIRQoluonTVw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
