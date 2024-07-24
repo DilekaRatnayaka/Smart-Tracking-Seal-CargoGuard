@@ -132,7 +132,7 @@ public class TruckTrackingFragment extends Fragment implements ItemAdapter.OnIte
         // Create a new instance of LockProfileFragement
         LockProfileFragment fragment = new LockProfileFragment();
 
-        // Pass the lock ID and current user's user document ID to the LockProfileFragment using a Bundle
+        // Pass the lock ID and current user's user document ID to the CargoManagementDetailsFragment using a Bundle
         Bundle args = new Bundle();
         args.putString("lock_id", item.getItemName()); // Assuming getItemName() returns the lock ID
         args.putString("user_document_id", userId); // Pass the current user's user document ID

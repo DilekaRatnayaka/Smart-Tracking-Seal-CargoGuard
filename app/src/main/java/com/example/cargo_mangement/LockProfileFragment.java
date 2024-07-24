@@ -27,6 +27,7 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
 public class LockProfileFragment extends Fragment {
@@ -78,12 +79,7 @@ public class LockProfileFragment extends Fragment {
             createNotificationChannel();
         }
 
-        // Fetch and display lock status
-        fetchDataFromFirestoreAndShowStatus(lockId, userDocumentId, journeyCollection);
-
-        // Fetch additional details and display
-        fetchAdditionalDetailsFromFirestore(userDocumentId, lockId, journeyCollection);
-
+        // Initialize UI elements
         driverNameTextView = view.findViewById(R.id.driverNameTextView);
         truckNumberTextView = view.findViewById(R.id.vehicleNumberTextView);
         contentsTextView = view.findViewById(R.id.contentsTextView);
@@ -92,11 +88,14 @@ public class LockProfileFragment extends Fragment {
         btnTrackTheTruck = view.findViewById(R.id.btn_TrackTheTruck);
         lockStatusTextView = view.findViewById(R.id.lockStatusTextView);
 
-        // Schedule the task to run every two minutes
+        // Fetch and display lock status and additional details
+        fetchLatestJourneyCollectionAndDetails();
+
+        // Schedule the task to run every minute
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                fetchDataFromFirestoreAndShowStatus(lockId, userDocumentId, journeyCollection);
+                fetchLatestJourneyCollectionAndDetails();
                 handler.postDelayed(this, delay);
             }
         }, delay);
@@ -137,7 +136,56 @@ public class LockProfileFragment extends Fragment {
         return view;
     }
 
-    private void fetchDataFromFirestoreAndShowStatus(String lockId, String userDocumentId, String journeyCollection) {
+    private void fetchLatestJourneyCollectionAndDetails() {
+        // Fetch the latest journey collection
+        db.collection("users")
+                .document(userDocumentId)
+                .collection("Locks")
+                .document(lockId)
+                .collection("Journeys")
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            QuerySnapshot querySnapshot = task.getResult();
+                            if (querySnapshot != null && !querySnapshot.isEmpty()) {
+                                String latestJourneyCollection = getLatestJourneyCollection(querySnapshot);
+                                if (latestJourneyCollection != null) {
+                                    fetchDataFromFirestoreAndShowStatus(latestJourneyCollection);
+                                    fetchAdditionalDetailsFromFirestore(latestJourneyCollection);
+                                } else {
+                                    Log.d(TAG, "No valid journey collections found.");
+                                }
+                            } else {
+                                Log.d(TAG, "No journey collections found.");
+                            }
+                        } else {
+                            Log.d(TAG, "Error getting journey collections: ", task.getException());
+                        }
+                    }
+                });
+    }
+
+    private String getLatestJourneyCollection(QuerySnapshot querySnapshot) {
+        String latestCollection = null;
+        int maxJourneyNumber = 0;
+
+        for (QueryDocumentSnapshot document : querySnapshot) {
+            String docId = document.getId();
+            if (docId.startsWith("Journey")) {
+                int journeyNumber = Integer.parseInt(docId.replace("Journey", ""));
+                if (journeyNumber > maxJourneyNumber) {
+                    maxJourneyNumber = journeyNumber;
+                    latestCollection = docId;
+                }
+            }
+        }
+
+        return latestCollection;
+    }
+
+    private void fetchDataFromFirestoreAndShowStatus(String journeyCollection) {
         db.collection("users")
                 .document(userDocumentId)
                 .collection("Locks")
@@ -156,7 +204,7 @@ public class LockProfileFragment extends Fragment {
                                     if (beltValueStr != null) {
                                         int beltValue = Integer.parseInt(beltValueStr);
                                         String lockStatus = beltValue == 33 ? "Locked" : "Unlocked";
-                                        updateLockStatusUI(lockStatus, lockId);
+                                        updateLockStatusUI(lockStatus);
                                     } else {
                                         Log.d(TAG, "Belt value is null");
                                     }
@@ -173,7 +221,7 @@ public class LockProfileFragment extends Fragment {
                 });
     }
 
-    private void fetchAdditionalDetailsFromFirestore(String userDocumentId, String lockId, String journeyCollection) {
+    private void fetchAdditionalDetailsFromFirestore(String journeyCollection) {
         db.collection("users")
                 .document(userDocumentId)
                 .collection("Locks")
@@ -214,25 +262,25 @@ public class LockProfileFragment extends Fragment {
         weightTextView.setText("Weight in kg: " + weight);
     }
 
-    private void updateLockStatusUI(String lockStatus, String lockId) {
+    private void updateLockStatusUI(String lockStatus) {
         lockStatusTextView.setText("Lock Status: " + lockStatus);
         if (!lockStatus.equals(previousLockStatus)) {
-            showNotification(lockStatus, lockId);
+            showNotification(lockStatus);
             previousLockStatus = lockStatus;
         }
     }
 
-    private void showNotification(String lockStatus, String lockId) {
+    private void showNotification(String lockStatus) {
         RemoteViews notificationLayout = new RemoteViews(getActivity().getPackageName(), R.layout.notification);
         notificationLayout.setTextViewText(R.id.notification_content, "Cargo lock status: " + lockStatus);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(getActivity(), CHANNEL_ID)
                 .setSmallIcon(R.drawable.notification_icon)
                 .setCustomContentView(notificationLayout)
-                .setContentText("Cargo lock ID: " + lockId + " status: " + lockStatus)
+                .setContentText("Cargo lock status: " + lockStatus)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setStyle(new NotificationCompat.BigTextStyle().bigText("Cargo lock ID: " + lockId + " status: " + lockStatus));
+                .setStyle(new NotificationCompat.BigTextStyle().bigText("Cargo lock status: " + lockStatus));
 
         Notification notification = builder.build();
         notificationManager.notify(NOTIFICATION_ID, notification);

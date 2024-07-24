@@ -56,13 +56,13 @@ public class MapFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        View view =  inflater.inflate(R.layout.fragment_map, container, false);
+        View view = inflater.inflate(R.layout.fragment_map, container, false);
 
         supportMapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.google_map);
         db = FirebaseFirestore.getInstance();
         handler = new Handler(Looper.getMainLooper());
 
-        // Retrieve userDocumentId and lockId from arguments
+        // Retrieve userDocumentId, lockId, and journeyCollection from arguments
         if (getArguments() != null) {
             userDocumentId = getArguments().getString("user_document_id");
             lockId = getArguments().getString("lock_id");
@@ -74,7 +74,7 @@ public class MapFragment extends Fragment {
                     @Override
                     public void onPermissionGranted(PermissionGrantedResponse permissionGrantedResponse) {
                         initMap();
-                        fetchDataFromFirestoreAndShowOnMap(lockId, userDocumentId, journeyCollection);
+                        fetchLatestJourneyCollectionAndData();
                         scheduleFirestoreDataFetch();
                     }
 
@@ -122,31 +122,52 @@ public class MapFragment extends Fragment {
         return view;
     }
 
-    private void scheduleFirestoreDataFetch() {
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                // Clear the map
-                googleMap.clear();
-                // Fetch all locations again from Firestore and show on map
-                fetchDataFromFirestoreAndShowOnMap(lockId, userDocumentId, journeyCollection );
-                // Reschedule for the next update
-                scheduleFirestoreDataFetch();
-            }
-        }, UPDATE_INTERVAL);
+    private void fetchLatestJourneyCollectionAndData() {
+        db.collection("users")
+                .document(userDocumentId)
+                .collection("Locks")
+                .document(lockId)
+                .collection("Journeys")
+                .get()
+                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+                    @Override
+                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                        if (task.isSuccessful()) {
+                            QuerySnapshot querySnapshot = task.getResult();
+                            if (querySnapshot != null && !querySnapshot.isEmpty()) {
+                                String latestJourneyCollection = getLatestJourneyCollection(querySnapshot);
+                                if (latestJourneyCollection != null) {
+                                    fetchDataFromFirestoreAndShowOnMap(latestJourneyCollection);
+                                }
+                            } else {
+                                Log.d(TAG, "No journey collections found.");
+                            }
+                        } else {
+                            Log.d(TAG, "Error getting journey collections: ", task.getException());
+                        }
+                    }
+                });
     }
 
-    private void initMap() {
-        supportMapFragment.getMapAsync(new OnMapReadyCallback() {
-            @Override
-            public void onMapReady(@NonNull GoogleMap map) {
+    private String getLatestJourneyCollection(QuerySnapshot querySnapshot) {
+        String latestCollection = null;
+        int maxJourneyNumber = 0;
 
-                googleMap = map;
+        for (QueryDocumentSnapshot document : querySnapshot) {
+            String docId = document.getId();
+            if (docId.startsWith("Journey")) {
+                int journeyNumber = Integer.parseInt(docId.replace("Journey", ""));
+                if (journeyNumber > maxJourneyNumber) {
+                    maxJourneyNumber = journeyNumber;
+                    latestCollection = docId;
+                }
             }
-        });
+        }
+
+        return latestCollection;
     }
 
-    private void fetchDataFromFirestoreAndShowOnMap(String lockId, String userDocumentId, String journeyCollection ) {
+    private void fetchDataFromFirestoreAndShowOnMap(String journeyCollection) {
         db.collection("users")
                 .document(userDocumentId)
                 .collection("Locks")
@@ -217,6 +238,27 @@ public class MapFragment extends Fragment {
                         }
                     }
                 });
+    }
+
+    private void scheduleFirestoreDataFetch() {
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                // Fetch the latest journey data again
+                fetchLatestJourneyCollectionAndData();
+                // Reschedule for the next update
+                scheduleFirestoreDataFetch();
+            }
+        }, UPDATE_INTERVAL);
+    }
+
+    private void initMap() {
+        supportMapFragment.getMapAsync(new OnMapReadyCallback() {
+            @Override
+            public void onMapReady(@NonNull GoogleMap map) {
+                googleMap = map;
+            }
+        });
     }
 
     private void showToast(String message) {

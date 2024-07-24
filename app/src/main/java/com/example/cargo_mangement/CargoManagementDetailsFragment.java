@@ -20,9 +20,11 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +41,7 @@ public class CargoManagementDetailsFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
-        View view= inflater.inflate(R.layout.fragment_cargo_management_details, container, false);
+        View view = inflater.inflate(R.layout.fragment_cargo_management_details, container, false);
 
         // Initialize Firebase Auth and Firestore
         mAuth = FirebaseAuth.getInstance();
@@ -59,7 +61,7 @@ public class CargoManagementDetailsFragment extends Fragment {
         buttonInitiateCargoLoading.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                createNextJourneyCollection(lockId, userDocumentId); // Pass lockId and userDocumentId to the createNextJourneyCollection method
+                createNextJourneyCollection(lockId, userDocumentId);
             }
         });
 
@@ -67,54 +69,46 @@ public class CargoManagementDetailsFragment extends Fragment {
     }
 
     // Method to create the next journey collection
-    private void createNextJourneyCollection(String userDocumentId, String lockId) {
-        db.collection("users")
+    private void createNextJourneyCollection(String lockId, String userDocumentId) {
+        DocumentReference lockDocRef = db.collection("users")
                 .document(userDocumentId)
                 .collection("Locks")
-                .document(lockId)
-                .get()
-                .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                        if (task.isSuccessful()) {
-                            DocumentSnapshot document = task.getResult();
-                            if (document != null && document.exists()) {
-                                // Get the number of existing Journey collections
-                                int journeyCount = document.getData().size();
+                .document(lockId);
 
-                                // Create the new Journey collection
-                                String newJourney = "Journey" + (journeyCount + 1);
-                                db.collection("users")
-                                        .document(userDocumentId)
-                                        .collection("Locks")
-                                        .document(lockId)
-                                        .collection(newJourney)
-                                        .document("Details")
-                                        .set(new HashMap<>()) // You can set initial data if needed
-                                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                            @Override
-                                            public void onSuccess(Void aVoid) {
-                                                Log.d(TAG, "Journey collection created successfully");
-                                                // Save cargo data after creating the journey
-                                                saveCargoDataToFirestore(lockId, userDocumentId, newJourney);
-                                            }
-                                        })
-                                        .addOnFailureListener(new OnFailureListener() {
-                                            @Override
-                                            public void onFailure(@NonNull Exception e) {
-                                                Log.e(TAG, "Error creating journey collection", e);
-                                                // Handle failure, if needed
-                                            }
-                                        });
-                            } else {
-                                Log.d(TAG, "No such document");
-                            }
-                        } else {
-                            Log.d(TAG, "get failed with ", task.getException());
-                        }
-                    }
-                });
+        lockDocRef.collection("Locks").get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                if (task.isSuccessful()) {
+                    int journeyCount = task.getResult().size();
+                    String newJourney = "Journey" + (journeyCount + 1);
+
+                    db.collection("users")
+                            .document(userDocumentId)
+                            .collection("Locks")
+                            .document(lockId)
+                            .collection(newJourney)
+                            .document("Details")
+                            .set(new HashMap<>()) // You can set initial data if needed
+                            .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                @Override
+                                public void onSuccess(Void aVoid) {
+                                    Log.d(TAG, "Journey collection created successfully");
+                                    saveCargoDataToFirestore(lockId, userDocumentId, newJourney);
+                                }
+                            })
+                            .addOnFailureListener(new OnFailureListener() {
+                                @Override
+                                public void onFailure(@NonNull Exception e) {
+                                    Log.e(TAG, "Error creating journey collection", e);
+                                }
+                            });
+                } else {
+                    Log.d(TAG, "Error getting documents: ", task.getException());
+                }
+            }
+        });
     }
+
 
     private void saveCargoDataToFirestore(String lockId, String userDocumentId, String journeyCollection) {
         // Get current user
@@ -128,7 +122,6 @@ public class CargoManagementDetailsFragment extends Fragment {
 
             // Check if any field is empty
             if (TextUtils.isEmpty(driverName) || TextUtils.isEmpty(truckNumber) || TextUtils.isEmpty(contents) || TextUtils.isEmpty(weightString)) {
-                // Display toast message if any field is empty
                 Toast.makeText(getActivity(), "Please fill in all fields", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -144,9 +137,9 @@ public class CargoManagementDetailsFragment extends Fragment {
 
             // Access Firestore and save cargo data under the user's document, lock document, and journey document
             DocumentReference journeyRef = db.collection("users")
-                    .document(userDocumentId) // Use the provided userDocumentId here
+                    .document(userDocumentId)
                     .collection("Locks")
-                    .document(lockId) // Use the provided lockId here
+                    .document(lockId)
                     .collection(journeyCollection)
                     .document("Details");
 
@@ -155,7 +148,6 @@ public class CargoManagementDetailsFragment extends Fragment {
                         @Override
                         public void onComplete(@NonNull Task<Void> task) {
                             if (task.isSuccessful()) {
-                                // Data saved successfully
                                 Toast.makeText(getActivity(), "Cargo details saved successfully", Toast.LENGTH_SHORT).show();
                                 // Clear the fields
                                 editTextDriverName.setText("");
@@ -163,8 +155,6 @@ public class CargoManagementDetailsFragment extends Fragment {
                                 editTextContents.setText("");
                                 editTextWeight.setText("");
                             } else {
-                                // Failed to save data
-                                // Handle the error
                                 Toast.makeText(getActivity(), "Failed to save cargo details", Toast.LENGTH_SHORT).show();
                             }
                         }

@@ -20,15 +20,6 @@
         android:theme="@style/Theme.Cargo_Mangement"
         tools:targetApi="31">
         <activity
-            android:name=".MapActivity"
-            android:exported="false" />
-        <activity
-            android:name=".LockProfileActivity"
-            android:exported="false" />
-        <activity
-            android:name=".CargoManagementDetailsActivity"
-            android:exported="false" />
-        <activity
             android:name=".LauncherActivity"
             android:exported="true">
             <intent-filter>
