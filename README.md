@@ -71,9 +71,23 @@ Provides FAQs and facilitates direct chat with the assistant team via WhatsApp.
   - **User Document (e.g., U01, U02)**: Fields: email, full name
 - **locks** (Collection)
   - **Lock Document (e.g., D001, D002)**
-  - **journey_** (Subcollection, (e.g., Journey1, Journey2))
+  - **journeys** (Subcollection)
+  -  **Journey Document** (e.g., Journey1, Journey2))
     - **details** (Document): Stores journey-specific details
     - **locations** (Document): Stores location data with timestamp
+   
+    - users (Collection)
+   ├── User Document (e.g., U01, U02)
+        ├── Fields: email, full name
+        ├── locks (Collection)
+             ├── Lock Document (e.g., D001, D002)
+                  ├── journeys (Subcollection)
+                       ├── Journey Document (e.g., Journey1, Journey2)
+                            ├── details (Document)
+                                 ├── Fields: driverName, truckName, contents, weight, lockStatus
+                            ├── locations (Collection)
+                                 ├── Location Document (e.g., Location1, Location2)
+                                      ├── Fields: latitude, longitude, timestamp
 
 ### Data Storage and Fetching
 - **Registration**: User data is stored in the `users` collection.
